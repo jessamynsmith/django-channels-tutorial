@@ -1,22 +1,23 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponseForbidden
 from django.shortcuts import render
-from django.views.generic import TemplateView
+from django.views.generic import DetailView
+
+from chat import models as chat_models
 
 
 def index(request):
     return render(request, 'chat/index.html')
 
 
-def room(request, room_name):
-    return render(request, 'chat/room.html', {
-        'room_name': room_name
-    })
-
-
-class RoomView(LoginRequiredMixin, TemplateView):
+class RoomView(LoginRequiredMixin, DetailView):
     template_name = 'chat/room.html'
+    model = chat_models.Room
+    slug_field = 'name'
 
-    def get_context_data(self, **kwargs):
-        context_data = super().get_context_data(**kwargs)
-        context_data['room_name'] = self.kwargs.get('room_name')
-        return context_data
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        room_user = self.object.roomuser_set.filter(user=self.request.user).first()
+        if not room_user:
+            return HttpResponseForbidden()
+        return response
